@@ -1,5 +1,4 @@
 import shapefile
-import numpy as np
 import math
 import heapq
 
@@ -7,7 +6,7 @@ import heapq
 # constants
 LATITUDE_RANGE = (45.49, 45.53)
 LONGITUDE_RANGE = (-73.59, -73.55)
-GRID_SIDE_LENGTH = 0.002
+GRID_SIDE_LENGTH = 0.002 # size of square areas represented by nodes
 
 COST_ALONG_BLOCK = 1.3
 COST_DIAGONAL = 1.5
@@ -17,20 +16,23 @@ COST_STRAIGHT = 1
 def main():
 
     # preparation
-
+    input("Press to load")
     sf = shapefile.Reader("Shape/crime_dt.shp")
     shapes = sf.shapes()
 
-    grid = build_graph(shapes)
+    input("Press to build")
+    # Build a graph with a 2d list representing geolocations of the square areas
+    # For now, the edge lists are empty.
+    graph = build_graph(shapes)
 
     # getting a flat descending order list of references to our graph cells
-    flat_list = [node for row in grid for node in row]
+    flat_list = [node for row in graph for node in row]
     flat_list.sort(key=lambda cell: cell.crime_count, reverse=True)
 
     # specific set-up
 
     # apply threshold rate
-    threshold = 0.75
+    threshold = 0.9
     num_blocks = math.floor((1 - threshold) * len(flat_list))
 
     # update cells above the threshold to indicate they are blocks
@@ -45,15 +47,17 @@ def main():
     goal_longitude = -73.585
     goal_latitude = 45.5275
 
-    starting_node = get_graph_node(grid, starting_longitude, starting_latitude)
-    goal_node = get_graph_node(grid, goal_longitude, goal_latitude)
+    starting_node = get_graph_node(graph, starting_longitude, starting_latitude)
+    goal_node = get_graph_node(graph, goal_longitude, goal_latitude)
 
+    input("get heuristics")
     # get heuristic evaluations for each cell
     for node in flat_list:
         node.h = heuristic(node, goal_node)
 
+    input("get edges")
     # get specific edges
-    get_edges(grid)
+    get_edges(graph)
 
     if not starting_node.edges:
         message = "No moves available from starting point. Enter another location."
@@ -67,6 +71,8 @@ def main():
     print(starting_node.h)
 
     # A* algorithm
+
+    input("get a*")
 
     path = A_star_algorithm(starting_node, goal_node)
     if len(path) == 1:
@@ -98,9 +104,13 @@ class Point:
         return self.__str__()
 
 
-# represents a sub-grid within the map
-# the boolean blockmeans that the area will be represented as block due
-# to a crime_count above the threshold
+# represents a square area within the original map
+# and contains crime statistics for the area
+# Dimension is determined by GRID_SIDE_SIZE
+# the boolean block means that the area will be represented as block
+# due to a crime_count above the threshold
+# It also contains a list of Edge objects representing edges to reachable nodes
+# and the associated cost. This list will be useful for the implementation of the A* algorithm
 class GraphNode:
     def __init__(self, point):
         self.point = point
@@ -111,6 +121,9 @@ class GraphNode:
 
 
 # represents an edge from one GraphNode to another
+# with the associated cost
+# Edges are discovered only once a threshold has been established
+# and blocks on the maps have been located
 class Edge:
     def __init__(self, graph_node, cost):
         self.graph_node = graph_node
@@ -118,6 +131,9 @@ class Edge:
 
 
 # represents a node in the A* algorithm implementation
+# contains a reference to a graph node
+# as well as informative pertaining to the search algorithm
+# such as children, parent node, total path cost, and A* score
 class TreeNode:
     def __init__(self, graph_node, parent, total_cost, A_star_score):
         self.graph_node = graph_node
@@ -157,7 +173,7 @@ def build_graph(shapes):
     return grid
 
 
-# get a reference to graph node representing a certain geolocation
+# gets a reference to the graph node representing a certain geolocation
 def get_graph_node(grid, longitude, latitude):
     x = math.floor((longitude - LONGITUDE_RANGE[0]) / GRID_SIDE_LENGTH)
     y = math.floor((LATITUDE_RANGE[1] - latitude) / GRID_SIDE_LENGTH)
@@ -173,7 +189,8 @@ def get_graph_node(grid, longitude, latitude):
 def heuristic(node, goal_node):
     y = goal_node.point.y - node.point.y
     x = goal_node.point.x - node.point.x
-    return math.sqrt(y**2 + x**2)
+    # the division by the sub-grid size is to put distances in the same units as the length cost
+    return math.sqrt(y**2 + x**2) / GRID_SIDE_LENGTH
 
 
 # Since the heuristic function is admissible, when we encounter the goal node, the solution path will
