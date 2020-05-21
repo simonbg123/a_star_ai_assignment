@@ -6,7 +6,7 @@ import heapq
 # constants
 LATITUDE_RANGE = (45.49, 45.53)
 LONGITUDE_RANGE = (-73.59, -73.55)
-GRID_SIDE_LENGTH = 0.002 # size of square areas represented by nodes
+GRID_SIZE = 0.002 # size of square areas represented by nodes
 
 COST_ALONG_BLOCK = 1.3
 COST_DIAGONAL = 1.5
@@ -53,7 +53,7 @@ def main():
     input("get heuristics")
     # get heuristic evaluations for each cell
     for node in flat_list:
-        node.h = heuristic(node, goal_node)
+        node.heuristic = heuristic(node, goal_node)
 
     input("get edges")
     # get specific edges
@@ -68,7 +68,7 @@ def main():
 
     #todo
     # show graph, print stats
-    print(starting_node.h)
+    print(starting_node.heuristic)
 
     # A* algorithm
 
@@ -114,7 +114,7 @@ class Point:
 class GraphNode:
     def __init__(self, point):
         self.point = point
-        self.h = -1    # heuristic value
+        self.heuristic = -1    # heuristic value
         self.crime_count = 0
         self.block = False
         self.edges = []
@@ -134,12 +134,12 @@ class Edge:
 # contains a reference to a graph node
 # as well as informative pertaining to the search algorithm
 # such as children, parent node, total path cost, and A* score
-class TreeNode:
-    def __init__(self, graph_node, parent, total_cost, A_star_score):
+class StateNode:
+    def __init__(self, graph_node, parent, path_cost, A_star_score):
         self.graph_node = graph_node
         self.parent = parent
         self.children = []
-        self.total_cost = total_cost
+        self.path_cost = path_cost
         self.A_star_score = A_star_score
 
     def __lt__(self, other):
@@ -151,8 +151,8 @@ class TreeNode:
 # Note that we use the conventional x, y cartesian representation to represent points
 # whereas the geolocations in the shapefile use latitude/longitude (y,x)
 def build_graph(shapes):
-    y_axis_size = round((LATITUDE_RANGE[1] - LATITUDE_RANGE[0]) / GRID_SIDE_LENGTH)
-    x_axis_size = round((LONGITUDE_RANGE[1] - LONGITUDE_RANGE[0]) / GRID_SIDE_LENGTH)
+    y_axis_size = round((LATITUDE_RANGE[1] - LATITUDE_RANGE[0]) / GRID_SIZE)
+    x_axis_size = round((LONGITUDE_RANGE[1] - LONGITUDE_RANGE[0]) / GRID_SIZE)
 
     grid = []
 
@@ -160,7 +160,7 @@ def build_graph(shapes):
     for row in range(y_axis_size):
         grid.append([])
         for col in range(x_axis_size):
-            point = Point(LONGITUDE_RANGE[0] + GRID_SIDE_LENGTH * col, LATITUDE_RANGE[1] - GRID_SIDE_LENGTH * (row + 1))
+            point = Point(LONGITUDE_RANGE[0] + GRID_SIZE * col, LATITUDE_RANGE[1] - GRID_SIZE * (row + 1))
             grid[row].append(GraphNode(point))
 
     # adding crime stats to appropriate grids
@@ -175,8 +175,8 @@ def build_graph(shapes):
 
 # gets a reference to the graph node representing a certain geolocation
 def get_graph_node(grid, longitude, latitude):
-    x = math.floor((longitude - LONGITUDE_RANGE[0]) / GRID_SIDE_LENGTH)
-    y = math.floor((LATITUDE_RANGE[1] - latitude) / GRID_SIDE_LENGTH)
+    x = math.floor((longitude - LONGITUDE_RANGE[0]) / GRID_SIZE)
+    y = math.floor((LATITUDE_RANGE[1] - latitude) / GRID_SIZE)
     return grid[y][x]
 
 
@@ -190,7 +190,7 @@ def heuristic(node, goal_node):
     y = goal_node.point.y - node.point.y
     x = goal_node.point.x - node.point.x
     # the division by the sub-grid size is to put distances in the same units as the length cost
-    return math.sqrt(y**2 + x**2) / GRID_SIDE_LENGTH
+    return math.sqrt(y**2 + x**2) / GRID_SIZE
 
 
 # Since the heuristic function is admissible, when we encounter the goal node, the solution path will
@@ -203,7 +203,7 @@ def A_star_algorithm(starting_node, goal_node, ):
     open_list = []        # priority queue, key is A* score, value is tree node reference
     closed_list = {None}  # this is a set because the heuristic function is monotonous
 
-    root = TreeNode(starting_node, None, 0, starting_node.h)
+    root = StateNode(starting_node, None, 0, starting_node.heuristic)
     heapq.heappush(open_list, root)
 
     while open_list:
@@ -222,9 +222,9 @@ def A_star_algorithm(starting_node, goal_node, ):
         for edge in node.graph_node.edges:
             if edge.graph_node.point in closed_list:
                 continue  # ignore a visited node
-            total_cost = node.total_cost + edge.cost
-            A_star_score = total_cost + edge.graph_node.h
-            tree_node = TreeNode(edge.graph_node, node, total_cost, A_star_score)
+            total_cost = node.path_cost + edge.cost
+            A_star_score = total_cost + edge.graph_node.heuristic
+            tree_node = StateNode(edge.graph_node, node, total_cost, A_star_score)
             # adding new node to the open list, with A* score as key
             heapq.heappush(open_list, tree_node)
 
