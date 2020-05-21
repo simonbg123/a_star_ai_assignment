@@ -1,6 +1,8 @@
 import shapefile
 import math
 import heapq
+import statistics as stats
+import matplotlib.pyplot as plt
 
 
 # constants
@@ -28,6 +30,14 @@ def main():
     # getting a flat descending order list of references to our graph cells
     flat_list = [node for row in graph for node in row]
     flat_list.sort(key=lambda cell: cell.crime_count, reverse=True)
+
+    # get statistics
+    crime_stats = [node.crime_count for row in graph for node in row]
+    mean = stats.mean(crime_stats)
+    std_dev = stats.stdev(crime_stats)
+    print(f"mean: {mean}")
+    print(f"standard deviation: {std_dev}")
+    del crime_stats
 
     # specific set-up
 
