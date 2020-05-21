@@ -24,15 +24,16 @@ def main():
     shapes = sf.shapes()
 
     input("Press to build")
-    # Build a graph with a 2d list representing geolocations of the square areas
-    # For now, the edge lists are empty.
+    # Build basic graph.
+    # Give each node a location attribute (Point)
+    # and populate crime stats for each node
+    # The nodes are mapped to a 2d list and can be accessed through that 2d list
+    # For now, there are no edges, or heuristic values.
     graph = build_graph(shapes)
 
-    # getting a flat descending order list of references to our graph cells
-    flat_list = [node for row in graph for node in row]
-    flat_list.sort(key=lambda cell: cell.crime_count, reverse=True)
-
     # get statistics
+
+    # get a flat list for easier calculations
     crime_stats = [node.crime_count for row in graph for node in row]
     mean = stats.mean(crime_stats)
     std_dev = stats.stdev(crime_stats)
@@ -40,15 +41,12 @@ def main():
     print(f"standard deviation: {std_dev}")
     del crime_stats
 
-    # specific set-up
-
-    # apply threshold rate
+    # get threshold
     threshold = 0.9
-    num_blocks = math.floor((1 - threshold) * len(flat_list))
 
-    # update cells above the threshold to indicate they are blocks
-    for index in range(num_blocks):
-        flat_list[index].block = True
+    # get blocks
+
+    get_blocks(graph, threshold)
 
     # mention the brackets
     # todo check input
@@ -63,8 +61,9 @@ def main():
 
     input("get heuristics")
     # get heuristic evaluations for each cell
-    for node in flat_list:
-        node.heuristic = heuristic(node, goal_node)
+    for row in graph:
+        for node in row:
+            node.heuristic = heuristic(node, goal_node)
 
     input("get edges")
     # get specific edges
@@ -183,13 +182,28 @@ def build_graph(shapes):
 
 
 # gets a reference to the graph node representing a certain geolocation
+# validity of location within range must be checked before calling
 def get_graph_node(graph, longitude, latitude):
     x = math.floor((longitude - LONGITUDE_RANGE[0]) / GRID_SIZE)
     y = math.floor((LATITUDE_RANGE[-1] - latitude) / GRID_SIZE)
     return graph[y][x]
 
 
-#def get_blocks()
+# determine which node will be a block and label accordingly
+def get_blocks(graph, threshold):
+
+    # to faciliate the application of a threshold and determine
+    # which nodes will be blocks
+    flat_list = [node for row in graph for node in row]
+    flat_list.sort(key=lambda cell: cell.crime_count, reverse=True)
+
+    # apply threshold rate
+    num_blocks = math.floor((1 - threshold) * len(flat_list))
+
+    # update cells above the threshold to indicate they are blocks
+    for index in range(num_blocks):
+        flat_list[index].block = True
+
 
 # returns distance between a node and the goal
 # this heuristic is admissible and monotonous.
