@@ -3,12 +3,13 @@ import math
 import heapq
 import statistics as stats
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 # constants
-LATITUDE_RANGE = (45.49, 45.53)
-LONGITUDE_RANGE = (-73.59, -73.55)
 GRID_SIZE = 0.002 # size of square areas represented by nodes
+LATITUDE_RANGE = np.arange(45.49, 45.53, GRID_SIZE)
+LONGITUDE_RANGE = np.arange(-73.59, -73.55, GRID_SIZE)
 
 COST_ALONG_BLOCK = 1.3
 COST_DIAGONAL = 1.5
@@ -158,37 +159,37 @@ class StateNode:
 
 # Building graph of points corresponding to bottom left corners of each grids
 # Entering cumulative crime stats or each point
-# Note that we use the conventional x, y cartesian representation to represent points
-# whereas the geolocations in the shapefile use latitude/longitude (y,x)
 def build_graph(shapes):
-    y_axis_size = round((LATITUDE_RANGE[1] - LATITUDE_RANGE[0]) / GRID_SIZE)
-    x_axis_size = round((LONGITUDE_RANGE[1] - LONGITUDE_RANGE[0]) / GRID_SIZE)
+    y_axis_size = len(LATITUDE_RANGE)
+    x_axis_size = len(LONGITUDE_RANGE)
 
-    grid = []
+    graph = []
 
     # creating the basic graph nodes
     for row in range(y_axis_size):
-        grid.append([])
+        graph.append([])
         for col in range(x_axis_size):
-            point = Point(LONGITUDE_RANGE[0] + GRID_SIZE * col, LATITUDE_RANGE[1] - GRID_SIZE * (row + 1))
-            grid[row].append(GraphNode(point))
+            point = Point(LONGITUDE_RANGE[col], LATITUDE_RANGE[-1 - row])
+            graph[row].append(GraphNode(point))
 
     # adding crime stats to appropriate grids
     for shape in shapes:
         longitude = shape.points[0][0]
         latitude = shape.points[0][1]
-        cell = get_graph_node(grid, longitude, latitude)
+        cell = get_graph_node(graph, longitude, latitude)
         cell.crime_count += 1
 
-    return grid
+    return graph
 
 
 # gets a reference to the graph node representing a certain geolocation
-def get_graph_node(grid, longitude, latitude):
+def get_graph_node(graph, longitude, latitude):
     x = math.floor((longitude - LONGITUDE_RANGE[0]) / GRID_SIZE)
-    y = math.floor((LATITUDE_RANGE[1] - latitude) / GRID_SIZE)
-    return grid[y][x]
+    y = math.floor((LATITUDE_RANGE[-1] - latitude) / GRID_SIZE)
+    return graph[y][x]
 
+
+#def get_blocks()
 
 # returns distance between a node and the goal
 # this heuristic is admissible and monotonous.
