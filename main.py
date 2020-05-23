@@ -5,169 +5,149 @@ import statistics as stats
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import numpy as np
-import sys
+
 
 
 # constants
+DEFAULT_RESOLUTION = 0.002
+DEFAULT_THRESHOLD = 0.5
 
-# edge costs
 
+# Main loop, dealing with user interaction
 def main():
-
-    # preparation
-
     sf = shapefile.Reader("Shape/crime_dt.shp")
     shapes = sf.shapes()
 
-    input("get map")
-    # get grid size
-    grid_size = 0.002  # size of square areas represented by nodes
+    print("\n")
+    print("       * * * * * * * * * * * * * * * *")
+    print("       *  Shortest Safe Path Finder  *")
+    print("       * * * * * * * * * * * * * * * *\n")
 
-    # get threshold
-    threshold = 0.8
+    resolution = DEFAULT_RESOLUTION
+    threshold = DEFAULT_THRESHOLD
+    keep_going = True
 
-    crime_map = Graph(shapes, grid_size, threshold)
+    while keep_going:
 
-    # get statistics
-    mean, std_dev = crime_map.get_statistics()
+        # print("       * * * * * * * * * * * * * * * *")
+        print("***  Main Menu  ***\n")
+        # print("       * * * * * * * * * * * * * * * *\n")
+        print("Available range: {-73.59, -73.55)  {45.49, 45.53)")
+        print(f"Area Resolution: {resolution}")
+        print(f"Crime Threshold: {threshold}")
+        print()
+        print("{:<18}: enter 'r'".format("Set resolution"))
+        print("{:<18}: enter 't'".format("Set threshold"))
+        print("{:<18}: enter 'q'".format("Quit"))
+        print("\nPress Enter to start!\n")
 
-    # show map
-    ###################
+        user_input = input().strip()
 
-    data = np.zeros((len(crime_map.graph[0]), len(crime_map.graph)))
-    for row in range(len(crime_map.graph)):
-        for col in range(len(crime_map.graph[0])):
-            data[row, col] = crime_map.graph[row][col].crime_count
+        if user_input is '':
+            specify_and_run(shapes, resolution, threshold)
+            continue
+        elif user_input is 'r':
+            temp = set_resolution()
+            if temp:
+                resolution = temp
+        elif user_input is 't':
+            temp = set_threshold()
+            if temp:
+                threshold = temp
+        elif user_input is 's':
+            pass
+        elif user_input is 'q':
+            print("\nBye\n")
+            return
+        else:
+            print("\nInvalid option\n")
+            continue
 
-    # create discrete colormap
-    cmap = colors.ListedColormap(['purple', 'yellow'])
-    bounds = [0, crime_map.cutoff_rate, 3000]
-    norm = colors.BoundaryNorm(bounds, cmap.N)
 
-    fig, ax = plt.subplots(figsize=(8, 8))
-    ax.imshow(data, cmap=cmap, norm=norm)
+def specify_and_run(shapes, resolution, threshold):
 
-    # draw gridlines
-    ax.grid(b=True, which='major', axis='both', linestyle='-', color='k', linewidth=1)
-    ax.set_xticks(np.arange(-0.5, len(crime_map.graph[0]), 1))
-    ax.set_yticks(np.arange(-0.5, len(crime_map.graph), 1))
+    # Build and show the map
+    crime_map = Graph(shapes, resolution, threshold)
+    fig, ax, title = show_map(crime_map)
 
-    for (i, j), z in np.ndenumerate(data):  # row, column
-        ax.text(j, i, int(z), ha='center', va='center')  # col, row
+    # get start and goal coordinates from user
+    start_longitude = 0
+    start_latitude = 0
+    goal_longitude = 0
+    goal_latitude = 0
 
-    mov_dec = 10e5
-    x_ticks = np.arange(crime_map.longitude_min * mov_dec,
-                        (crime_map.longitude_max + crime_map.grid_size) * mov_dec,
-                        crime_map.grid_size * mov_dec) / mov_dec
-    y_ticks = np.arange(crime_map.latitude_max * mov_dec,
-                        (crime_map.latitude_min - crime_map.grid_size) * mov_dec,
-                        -crime_map.grid_size * mov_dec) / mov_dec
-    ax.set_yticklabels(y_ticks)
+    def get_coordinates(x, y):
+        try:
+            longitude = float(x)
+            latitude = float(y)
+        except ValueError:
+            return None, None
+        else:
+            return longitude, latitude
 
-    ax.set_xticklabels(x_ticks, rotation='vertical')
-    title = "Crime counts per area\nMean: {}    Standard deviation: {:0.2f}".format(mean, std_dev)
-    fig.suptitle(title)
+    i = 3
+    while i > 0:
+        user_start = input("\nEnter starting coordinates (ex: -73.55 45.525)\n")
+        split_args = user_start.split()
+        if len(split_args) != 2:
+            print("\nInvalid input. Try again.")
+            i -= 1
+            continue
+        start_longitude, start_latitude = get_coordinates(*split_args)
 
-    plt.show(block=False)
+        if not start_longitude or not start_latitude:
+            i -= 1
+            print("\nInvalid input. Try again.")
+            continue
 
-    ###################
+        start_node = crime_map.get_graph_node(start_longitude, start_latitude)
+        if not start_node:
+            print("\nThe locations must be within the map's range\n")
+            input("\nPress enter to continue.\n")
+            return
 
-    # get start, goal points
-    # mention the brackets
-    # todo check input
+        user_goal = input("\nEnter destination coordinates (ex: -73.55 45.525)\n")
+        split_args = user_goal.split()
+        goal_longitude, goal_latitude = get_coordinates(*split_args)
 
-    starting_longitude = -73.56
-    starting_latitude = 45.525
-    goal_longitude = -73.575
-    goal_latitude = 45.511
+        if not goal_longitude or not goal_latitude:
+            i -= 1
+            print("\nInvalid input. Try again.")
+            continue
 
-    starting_node = crime_map.get_graph_node(starting_longitude, starting_latitude)
-    goal_node = crime_map.get_graph_node(goal_longitude, goal_latitude)
+        goal_node = crime_map.get_graph_node(goal_longitude, goal_latitude)
+        if not goal_node:
+            print("\nThe locations must be within the map's range\n")
+            input("\nPress enter to continue.\n")
+            return
 
-    if not starting_node or not goal_node:
-        message = "The locations must be within the map's range"
-        assert False
-        # todo go back to menu
+        break
 
     # Calculate heuristics for the whole graph
-    # We could have done it on-the-fly, but the limited size of our sample allows this.
-    # Also, this prevents calculating the heuristic multiple times for the same node
+        # We could have done it on-the-fly, but the limited size of our sample allows this.
+        # Also, this prevents calculating the heuristic multiple times for the same node
     crime_map.add_heuristics(goal_node)
 
-
-
     # A* algorithm
+    solution_path = a_star_algorithm(start_node, goal_node)
 
-    input("get a*")
-
-    path = a_star_algorithm(starting_node, goal_node)
-
-    # always show start and goal no matter what ,
-    # with following messages
-
-    start_point = crime_map.get_graph_tuple(starting_longitude, starting_latitude)
+    # Show solution
+    # start and goal are shown no matter what
+    start_point = crime_map.get_graph_tuple(start_longitude, start_latitude)
     goal_point = crime_map.get_graph_tuple(goal_longitude, goal_latitude)
-    ax.scatter(start_point[0] - 0.5, start_point[1] + 0.5, color='green', linewidths=5, zorder=4,
-               label="starting point")
-    ax.scatter(goal_point[0] - 0.5, goal_point[1] + 0.5, color='blue', linewidths=9, zorder=3,
-               label="goal")
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.06), shadow=True, ncol=2)
+
+    show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_point)
 
 
-    if not path:
-        message = f"{title}\nDue to blocks, no solution was found. Try again with other parameters."
-        fig.suptitle(message)
-        plt.show()
-
-    else:
-        # draw path from path[]
-        # should work also for len(path) == 1
-        message = f"{title}\nPath found! Length: {len(path) - 1}"
-        if len(path) == 1:
-            message += "  - Goal is located in same area as starting point"
-
-        # convert path
-        solution_x = []
-        solution_y = []
-        for i in range(len(path) - 1, -1, -1):
-            point = crime_map.get_graph_tuple(*path[i])
-            solution_x.append(point[0] - 0.5)
-            solution_y.append(point[1] + 0.5)
-
-        # ax.scatter(solution_x[-1], solution_y[-1], color='orange', linewidths=7, zorder=3)
-        # ax.scatter(solution_x[0], solution_y[0], color='blue', linewidths=7, zorder=3)
-
-        ax.plot(solution_x, solution_y, color='green', linewidth=6, zorder=2)
-        fig.suptitle(message)
-        plt.show(block=False)
-
-    input("Press enter to return")
-
-
-    # go back to main menu
-
-# A point as represented in a 2D cartesian plane
-# class Point:
-#     def __init__(self, x, y):
-#         self.x = x
-#         self.y = y
-#
-#     def __str__(self):
-#         return f"{{{self.x}, {self.y}}}"
-#
-#     def __repr__(self):
-#         return self.__str__()
-
-
-# Graph of nodes represent geolocations within a pre-defined area,
+# Graph of nodes represent geo-locations within a pre-defined area,
 # located in a grid
 # The nodes contain crime statistics taken from
 class Graph:
 
-    def __init__(self, shapes, grid_size, threshold):
+    def __init__(self, shapes, resolution, threshold):
 
         self.graph = []
-        self.grid_size = grid_size
+        self.resolution = resolution
         self.threshold = threshold
 
         # costs of edges
@@ -193,10 +173,10 @@ class Graph:
         mov_dec = 10e5
         self.x_axis = np.arange(self.longitude_min * mov_dec,
                                 self.longitude_max * mov_dec,
-                                self.grid_size * mov_dec) / mov_dec
+                                self.resolution * mov_dec) / mov_dec
         self.y_axis = np.arange((self.latitude_min * mov_dec),
                                 (self.latitude_max * mov_dec),
-                                (self.grid_size * mov_dec)) / mov_dec
+                                (self.resolution * mov_dec)) / mov_dec
 
         # adding the basic graph nodes inside the 2D list
         for row in range(len(self.y_axis)):
@@ -216,22 +196,20 @@ class Graph:
     # returns a reference to a graph node corresponding
     # to a certain geolocation
     def get_graph_node(self, longitude, latitude):
-        x = math.floor((longitude * 10e5 - self.longitude_min * 10e5) / (self.grid_size * 10e5))
+        x = math.floor((longitude * 10e5 - self.longitude_min * 10e5) / (self.resolution * 10e5))
         y = len(self.graph) - 1 - \
-            math.floor((latitude * 10e5 - self.latitude_min * 10e5) / (self.grid_size * 10e5))
+            math.floor((latitude * 10e5 - self.latitude_min * 10e5) / (self.resolution * 10e5))
 
         # checking that the geolocation is reachable in our graph
         if not (0 <= x < len(self.graph[0]) and 0 <= y < len(self.graph)):
-            # print(longitude)
-            # print(latitude)
             return None
 
         return self.graph[y][x]
 
     def get_graph_tuple(self, longitude, latitude):
-        x = math.floor((longitude * 10e5 - self.longitude_min * 10e5) / (self.grid_size * 10e5))
+        x = math.floor((longitude * 10e5 - self.longitude_min * 10e5) / (self.resolution * 10e5))
         y = len(self.graph) - 1 - \
-            math.floor((latitude * 10e5 - self.latitude_min * 10e5 ) / (self.grid_size * 10e5))
+            math.floor((latitude * 10e5 - self.latitude_min * 10e5 ) / (self.resolution * 10e5))
 
         # checking that the geolocation is reachable in our graph
         if not (0 <= x < len(self.graph[0]) and 0 <= y < len(self.graph)):
@@ -281,7 +259,7 @@ class Graph:
         y_diff = goal_node.point[1] - node.point[1]
         x_diff = goal_node.point[0] - node.point[0]
         # the division by the sub-grid size is to put distances in the same units as the length cost
-        return math.sqrt(y_diff ** 2 + x_diff ** 2) / self.grid_size
+        return math.sqrt(y_diff ** 2 + x_diff ** 2) / self.resolution
 
     # returns mean and standard_dev for crime stats on this graph
     def get_statistics(self):
@@ -385,7 +363,7 @@ class Graph:
 
 # represents a square area within the original map
 # and contains crime statistics for the area
-# Dimension is determined by GRID_SIDE_SIZE
+# Dimension is determined by the resolution
 # the boolean block means that the area will be represented as block
 # due to a crime_count above the threshold
 # It also contains a list of Edge objects representing edges to reachable nodes
@@ -473,6 +451,135 @@ def get_solution_path(node):
         solution_path.append(node.graph_node.point)
 
     return solution_path
+
+
+def show_map(crime_map):
+
+    # remove any previous plot
+    plt.close()
+
+    # get statistics
+    mean, std_dev = crime_map.get_statistics()
+
+    data = np.zeros((len(crime_map.graph[0]), len(crime_map.graph)))
+    for row in range(len(crime_map.graph)):
+        for col in range(len(crime_map.graph[0])):
+            data[row, col] = crime_map.graph[row][col].crime_count
+
+    # create discrete colormap
+    cmap = colors.ListedColormap(['purple', 'yellow'])
+    bounds = [0, crime_map.cutoff_rate, 3000]
+    norm = colors.BoundaryNorm(bounds, cmap.N)
+
+    fig, ax = plt.subplots(figsize=(9, 7))
+    ax.imshow(data, cmap=cmap, norm=norm)
+
+    # draw grid lines
+    ax.grid(b=True, which='major', axis='both', linestyle='-', color='k', linewidth=1)
+    ax.set_xticks(np.arange(-0.5, len(crime_map.graph[0]), 1))
+    ax.set_yticks(np.arange(-0.5, len(crime_map.graph), 1))
+
+    for (i, j), z in np.ndenumerate(data):  # row, column
+        ax.text(j, i, int(z), ha='center', va='center')  # col, row
+
+    mov_dec = 10e5
+    x_ticks = np.arange(crime_map.longitude_min * mov_dec,
+                        (crime_map.longitude_max + crime_map.resolution) * mov_dec,
+                        crime_map.resolution * mov_dec) / mov_dec
+    y_ticks = np.arange(crime_map.latitude_max * mov_dec,
+                        (crime_map.latitude_min - crime_map.resolution) * mov_dec,
+                        -crime_map.resolution * mov_dec) / mov_dec
+    ax.set_yticklabels(y_ticks)
+
+    ax.set_xticklabels(x_ticks, rotation='vertical')
+    title = "Crime counts per area\nMean: {}    Standard deviation: {:0.2f}".format(mean, std_dev)
+
+    fig.suptitle(title)
+
+    plt.show(block=False)
+
+    print("\nSee map for crime stats.\nMean: {}    Standard deviation: {:0.2f}\n".format(mean, std_dev))
+
+    return fig, ax, title
+
+
+def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_point):
+
+    ax.scatter(start_point[0] - 0.5, start_point[1] + 0.5, color='green', linewidths=5, zorder=4,
+               label="starting point")
+    ax.scatter(goal_point[0] - 0.5, goal_point[1] + 0.5, color='blue', linewidths=9, zorder=3,
+               label="goal")
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.06), shadow=True, ncol=2)
+
+    if not solution_path:
+        message = f"{title}\nDue to blocks, no solution was found. Try again with other parameters.\n"
+        fig.suptitle(message)
+        print(f"\n{message}\n")
+        plt.show(block=False)
+
+    else:
+        # draw path from path[]
+        # should work also for len(path) == 1
+        message = f"{title}\nPath found! Length: {len(solution_path) - 1}"
+        if len(solution_path) == 1:
+            message += "  - Goal is located in same area as starting point"
+
+        # convert path
+        solution_x = []
+        solution_y = []
+        for i in range(len(solution_path) - 1, -1, -1):
+            point = crime_map.get_graph_tuple(*solution_path[i])
+            solution_x.append(point[0] - 0.5)
+            solution_y.append(point[1] + 0.5)
+
+        ax.plot(solution_x, solution_y, color='green', linewidth=5, zorder=2)
+        fig.suptitle(message)
+        print(f"\n{message}\n")
+        print(solution_path)
+        print()
+        plt.show(block=False)
+
+    input("\nPress enter to continue\n")
+
+
+def set_resolution():
+    i = 3
+    while i > 0:
+        try:
+            res = float(input("\nEnter resolution between 0.001 and 0.005\n"))
+
+        except ValueError:
+            print("\nInvalid resolution\n")
+            i -= 1
+        else:
+            if not 0.001 <= res <= 0.005:
+                i -= 1
+                print("\nValue not in range.\n")
+                continue
+            else:
+                return res
+
+    return None
+
+
+def set_threshold():
+    i = 3
+    while i > 0:
+        try:
+            thr = int(input("\nEnter threshold % (1 - 99)\n"))
+
+        except ValueError:
+            print("\nInvalid format\n")
+            i -= 1
+        else:
+            if not 1 <= thr <= 99:
+                i -= 1
+                print("\nValue not in range\n")
+                continue
+            else:
+                return thr / 100.0
+
+    return None
 
 
 if __name__ == "__main__":
