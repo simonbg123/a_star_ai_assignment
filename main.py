@@ -5,26 +5,29 @@ import statistics as stats
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import numpy as np
+import time
 
 
-
-# constants
+""" constants """
 DEFAULT_RESOLUTION = 0.002
 DEFAULT_THRESHOLD = 0.5
 
 
-# Main loop, dealing with user interaction
 def main():
+    """
+    Deals with user interaction. Handles the flow of the program.
+    :return: None
+    """
     sf = shapefile.Reader("Shape/crime_dt.shp")
     shapes = sf.shapes()
+    resolution = DEFAULT_RESOLUTION
+    threshold = DEFAULT_THRESHOLD
 
     print("\n")
     print("       * * * * * * * * * * * * * * * *")
     print("       *  Shortest Safe Path Finder  *")
     print("       * * * * * * * * * * * * * * * *\n")
 
-    resolution = DEFAULT_RESOLUTION
-    threshold = DEFAULT_THRESHOLD
     keep_going = True
 
     while keep_going:
@@ -44,7 +47,7 @@ def main():
         user_input = input().strip()
 
         if user_input is '':
-            specify_and_run(shapes, resolution, threshold)
+            start(shapes, resolution, threshold)
             continue
         elif user_input is 'r':
             temp = set_resolution()
@@ -64,7 +67,19 @@ def main():
             continue
 
 
-def specify_and_run(shapes, resolution, threshold):
+def start(shapes, resolution, threshold):
+    """
+    Gets start and goal locations from user, shows the original map,
+    and provides the most effective path
+    to the destination on the terminal and on the graphic map.
+    Uses an A* algorithm, with an admissible and monotonous heuristic function.
+    More information at the appropriate methods and class definitions.
+    :param shapes: the shapefile object obtained from shape files, using the PyShp library
+    :param resolution: the size of the side of each sub-areas in hte map (grids), in terms of geo-location units.
+    :param threshold: The percentage of the sub-areas (arranged from the crime to the highest crime rates),
+    from which we start to label sub-areas as blocks (forbidden areas)
+    :return:
+    """
 
     # Build and show the map
     crime_map = Graph(shapes, resolution, threshold)
@@ -85,6 +100,7 @@ def specify_and_run(shapes, resolution, threshold):
         else:
             return longitude, latitude
 
+    # Checking validity of input, with a max of three attempts.
     i = 3
     while i > 0:
         user_start = input("\nEnter starting coordinates (ex: -73.55 45.525)\n")
@@ -123,26 +139,36 @@ def specify_and_run(shapes, resolution, threshold):
 
         break
 
-    # Calculate heuristics for the whole graph
-        # We could have done it on-the-fly, but the limited size of our sample allows this.
-        # Also, this prevents calculating the heuristic multiple times for the same node
+    # Calculate heuristic values for the whole graph
+    # This could have been done on a need basis, during the A* algorithm,
+    # but the data size is small and we hereby avoid calculating heuristic value s
+    # multiple times for the same node.
     crime_map.add_heuristics(goal_node)
 
     # A* algorithm
-    solution_path = a_star_algorithm(start_node, goal_node)
+    solution_path = a_star_algorithm(start_node, goal_node, time.time())
 
     # Show solution
-    # start and goal are shown no matter what
+    # start and goal are always shown.
     start_point = crime_map.get_graph_tuple(start_longitude, start_latitude)
     goal_point = crime_map.get_graph_tuple(goal_longitude, goal_latitude)
 
     show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_point)
 
 
-# Graph of nodes represent geo-locations within a pre-defined area,
-# located in a grid
-# The nodes contain crime statistics taken from
 class Graph:
+    """
+    Graph representing the crime map. Each node represents a specific square-area the side length
+    of which is determined by the resolution attribute, passed as a parameter.
+    Each node has a crime count for its area, as well as tuple representing the geo-location of the
+    bottom-left point in the area. Real geo-locations are mapped to a node and take on the coordinates of
+    the sub-area it represents.
+
+    Nodes are mapped to a 2-dimensional array to facilitate the building of the graph and the edges. Each node
+    a set of edges. Edges contain a reference to a node, as well as a cost value.
+
+    Nodes also have a heuristic value, which is computed once the goal destination is known.
+    """
 
     def __init__(self, shapes, resolution, threshold):
 
@@ -155,7 +181,7 @@ class Graph:
         self._cost_diagonal = 1.5
         self._cost_straight = 1
 
-        # covered area
+        # total covered area
         self.latitude_min = 45.49
         self.latitude_max = 45.53
         self.longitude_min = -73.59
@@ -166,8 +192,12 @@ class Graph:
         self.cutoff_rate = self._place_blocks()
         self._add_edges()
 
-    # create the basic nodes corresponding to all the coordinates in our graph
     def _build_graph(self):
+        """
+        Creates the basic graph of nodes corresponding to all the coordinates in the map, along
+        with their respective crime counts.
+        :return: None
+        """
 
         # We use this below to avoid floating-point precision issues by temporarily moving the decimal point away
         mov_dec = 10e5
@@ -185,17 +215,26 @@ class Graph:
                 point = (self.x_axis[col], self.y_axis[-1 - row])
                 self.graph[row].append(GraphNode(point))
 
-    # adding crime stats to appropriate nodes from the shape file
     def _add_crime_stats(self, shapes):
+        """
+        Adds crime counts to appropriate nodes from the data in the shape file.
+        :param shapes:
+        :return:
+        """
         for shape in shapes:
             longitude = shape.points[0][0]
             latitude = shape.points[0][1]
             node = self.get_graph_node(longitude, latitude)
             node.crime_count += 1
 
-    # returns a reference to a graph node corresponding
-    # to a certain geolocation
     def get_graph_node(self, longitude, latitude):
+        """
+        Returns a reference to a graph node corresponding
+        to a certain geolocation
+        :param longitude:
+        :param latitude:
+        :return: a reference to a graph node
+        """
         mov_dec = 10e5  # this is used to avoid floating point accuracy issues
         x = math.floor((longitude * mov_dec - self.longitude_min * mov_dec) / (self.resolution * mov_dec))
         y = len(self.graph) - 1 - \
@@ -208,6 +247,13 @@ class Graph:
         return self.graph[y][x]
 
     def get_graph_tuple(self, longitude, latitude):
+        """
+        Returns the internal indices associated with a node
+        corresponding to a geo-location.
+        :param longitude:
+        :param latitude:
+        :return: a tuple representing the indices i, j of a node location in the 2-dimensional list
+        """
         mov_dec = 10e5  # this is used to avoid floating point accuracy issues
         x = math.floor((longitude * mov_dec - self.longitude_min * mov_dec) / (self.resolution * mov_dec))
         y = len(self.graph) - 1 - \
@@ -215,14 +261,15 @@ class Graph:
 
         # checking that the geolocation is reachable in our graph
         if not (0 <= x < len(self.graph[0]) and 0 <= y < len(self.graph)):
-            assert False
-            print("rats")
             return None
 
         return x, y
 
-    # determine which nodes will be a block and label accordingly
     def _place_blocks(self):
+        """
+        Determines which nodes will be a block according to the supplied threshold parameter.
+        :return: None
+        """
 
         # list flattening, to facilitate the application of a threshold
         # and determine which nodes will be blocks
@@ -236,8 +283,9 @@ class Graph:
         for index in range(num_blocks):
             flat_list[index].block = True
 
-        # also include cells that have same crime rate as median
-        # if that is the case
+        # also include cells that have same crime rate as the last node included
+        # if any. This allows straight forward identification in the
+        # color plot.
         cutoff_rate = flat_list[index].crime_count
         index += 1
         while flat_list[index].crime_count >= cutoff_rate:
@@ -247,6 +295,11 @@ class Graph:
         return cutoff_rate
 
     def add_heuristics(self, goal_node):
+        """
+        Calculates and sets the heuristic value for every node in the graph.
+        :param goal_node: destination node
+        :return: None
+        """
         for row in self.graph:
             for node in row:
                 node.heuristic = self.heuristic(node, goal_node)
@@ -278,7 +331,7 @@ class Graph:
 
     def get_statistics(self):
         """
-        Obtain mean and standard deviation for crime stats of this graph.
+        Obtains the mean and standard deviation for crime stats of this graph.
         :return: a tuple of the mean and the standard deviation for crime stats of this graph.
         """
         crime_stats = [node.crime_count for row in self.graph for node in row]
@@ -288,18 +341,18 @@ class Graph:
 
     def _add_edges(self):
         """
-        Obtain edges for each cell in the graph.
+        Discovers all edges for each cell in the graph, according to the blocks
+        and cost rules. Should only be called once blocks have been assigned.
         Edges along the boundaries of the graph aren't allowed.
         :return: None
         """
-
         for i in range(len(self.graph)):
             for j in range(len(self.graph[0])):
                 self._get_edges(i, j)
 
     def _get_edges(self, i, j):
         """
-        Get edges for a node. Should only be called once blocks have been assigned.
+        Get edges for one node. Should only be called once blocks have been assigned.
         :param i: the row index of the node in the 2D array
         :param j: the colomn index of the node in the 2D array
         :return: None
@@ -391,14 +444,16 @@ class Graph:
                 node.edges.append(Edge(self.graph[i + 1][j], self._cost_straight))
 
 
-# represents a square area within the original map
-# and contains crime statistics for the area
-# Dimension is determined by the resolution
-# the boolean block means that the area will be represented as block
-# due to a crime_count above the threshold
-# It also contains a list of Edge objects representing edges to reachable nodes
-# and the associated cost. This list will be useful for the implementation of the A* algorithm
 class GraphNode:
+    """
+    Represents a square area within the original map.
+    Contains crime statistics for the area. Has a tuple attribute representing the
+    bottom-left geo-locations of the area, that all locations in this area are mapped to.
+    The boolean block indicates whether the node represents a block on the map.
+    due to a crime_count above the threshold
+    It also has a list of Edge objects representing edges to reachable nodes
+    and their associated cost.
+    """
 
     def __init__(self, point):
         self.point = point
@@ -408,21 +463,29 @@ class GraphNode:
         self.edges = []
 
 
-# represents an edge from one GraphNode to another
-# with the associated cost
-# Edges are discovered only once a threshold has been established
-# and blocks on the maps have been located
 class Edge:
+    """
+    Represents an edge from one GraphNode to another
+    with the associated cost.
+    Edges are only discovered once a threshold has been established
+    and blocks on the maps have been located.
+    """
     def __init__(self, graph_node, cost):
         self.graph_node = graph_node
         self.cost = cost
 
 
-# represents a node in the A* algorithm implementation
-# contains a reference to a graph node
-# as well as informative pertaining to the search algorithm
-# such as children, parent node, total path cost, and A* score
-class StateTreeNode:
+class StateSpaceNode:
+    """
+    Represents a node in the A* algorithm implementation.
+    Contains a reference to a GraphNode, as well as
+    information pertaining to the search algorithm.
+    It has a parent node (to retrace the solution path), and a set of child nodes
+    representing the nodes reachable from this node. It has a total path cost,
+    which is the cost from the start node to this node, according to the specific
+    branch in the search tree, as well as an A* score, which is the sum of the total path
+    cost and the related graph node's heuristic value.
+    """
     def __init__(self, graph_node, parent, path_cost, a_star_score):
         self.graph_node = graph_node
         self.parent = parent
@@ -434,22 +497,32 @@ class StateTreeNode:
         return self.a_star_score < other.a_star_score
 
 
-# Since the heuristic function is admissible, when we encounter the goal node, the solution path will
-# also be the most effective path
-# Note: since the heuristic function is monotonous, we store visited nodes in a set, since they will
-# always be visited at the best cost the first time.
-def a_star_algorithm(starting_node, goal_node):
+def a_star_algorithm(starting_node, goal_node, start_time):
+    """
+    Since the heuristic function is admissible (see relevant comments), when we
+    encounter the goal node, the solution path will also be the most effective path.
+    Also, since the heuristic function is monotonous (see relevant comments),
+    we store visited nodes in a set, since they will always be visited only once,
+    at the best possible cost.
+    :param starting_node:
+    :param goal_node:
+    :param start_time:
+    :return: the solution path as a list of tuples
+    """
 
     solution_path = []    # a list of points from the goal back to the root of the tree
-    open_list = []        # priority queue, key is A* score, value is tree node reference
-    closed_list = {None}  # this is a set because the heuristic function is monotonous
+    open_list = []        # priority queue. The key is the A* score, and the value is a node reference
+    closed_list = {None}  # this is the set (see comments above) of tuples representing the geo-locations of the visited nodes.
 
-    root = StateTreeNode(starting_node, None, 0, starting_node.heuristic)
+    root = StateSpaceNode(starting_node, None, 0, starting_node.heuristic)
     heapq.heappush(open_list, root)
 
     while open_list:
 
-        #todo chck elapsed time
+        # checking timing requirement
+        if time.time() - start_time > 10.0:
+            print("Time is up. The optimal path is not found.")
+            exit()
 
         node = heapq.heappop(open_list)
 
@@ -465,9 +538,8 @@ def a_star_algorithm(starting_node, goal_node):
                 continue  # ignore a visited node
             total_cost = node.path_cost + edge.cost
             a_star_score = total_cost + edge.graph_node.heuristic
-            tree_node = StateTreeNode(edge.graph_node, node, total_cost, a_star_score)
-            # adding new node to the open list, with A* score as key
-            heapq.heappush(open_list, tree_node)
+            tree_node = StateSpaceNode(edge.graph_node, node, total_cost, a_star_score)
+            heapq.heappush(open_list, tree_node)     # adding new node to the open list, with A* score as key
 
     # if we ended up here, it means we have exhausted all paths
     # but the search yielded no solution
@@ -475,6 +547,11 @@ def a_star_algorithm(starting_node, goal_node):
 
 
 def get_solution_path(node):
+    """
+    Reconstruct the path from the root node to the goal node
+    :param node:
+    :return: a list of tuples representation geo-locations
+    """
     solution_path = [node.graph_node.point]
     while node.parent:
         node = node.parent
@@ -484,13 +561,19 @@ def get_solution_path(node):
 
 
 def show_map(crime_map):
+    """
+    Shows the initial graph, before specifying a start and a goal
+    :param crime_map:
+    :return:
+    """
 
     # remove any previous plot
     plt.close()
 
-    # get statistics
+    # get statistics to display
     mean, std_dev = crime_map.get_statistics()
 
+    # getting a 2D list of the crime counts to map to a colormap
     data = np.zeros((len(crime_map.graph[0]), len(crime_map.graph)))
     for row in range(len(crime_map.graph)):
         for col in range(len(crime_map.graph[0])):
@@ -510,8 +593,9 @@ def show_map(crime_map):
     ax.set_yticks(np.arange(-0.5, len(crime_map.graph), 1))
 
     for (i, j), z in np.ndenumerate(data):  # row, column
-        ax.text(j, i, int(z), ha='center', va='center')  # col, row
+        ax.text(j, i, int(z), ha='center', va='center')  # col, row, show crime counts for each sub-area
 
+    # relabelling the x, y ticks according to appropriate geo-locations
     mov_dec = 10e5   # this is to avoid floating point accuracy issues in below calculations
     x_ticks = np.arange(crime_map.longitude_min * mov_dec,
                         (crime_map.longitude_max + crime_map.resolution) * mov_dec,
@@ -519,11 +603,11 @@ def show_map(crime_map):
     y_ticks = np.arange(crime_map.latitude_max * mov_dec,
                         (crime_map.latitude_min - crime_map.resolution) * mov_dec,
                         -crime_map.resolution * mov_dec) / mov_dec
+
     ax.set_yticklabels(y_ticks)
-
     ax.set_xticklabels(x_ticks, rotation='vertical')
-    title = "Crime counts per area\nMean: {}    Standard deviation: {:0.2f}".format(mean, std_dev)
 
+    title = "Crime counts per area\nMean: {}    Standard deviation: {:0.2f}".format(mean, std_dev)
     fig.suptitle(title)
     plt.show(block=False)
 
@@ -533,6 +617,17 @@ def show_map(crime_map):
 
 
 def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_point):
+    """
+    Showing the same graph, but with the solution path
+    :param crime_map: the crime map (Graph)
+    :param solution_path: a list of tuples representing the path from start to goal.
+    :param fig: a reference to the previously obtained pyplot.figure object
+    :param ax: a reference to the previously obtained matplotlib.axes.Axes object
+    :param title: title of the plot taken from the previously shown plot
+    :param start_point:
+    :param goal_point:
+    :return: None
+    """
 
     ax.scatter(start_point[0] - 0.5, start_point[1] + 0.5, color='green', linewidths=5, zorder=4,
                label="starting point")
@@ -547,7 +642,7 @@ def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_po
         plt.show(block=False)
 
     else:
-        # draw path from path[]
+        # draw the path from the solution_path
         # should work also for len(path) == 1
         message = f"{title}\nPath found! Length: {len(solution_path) - 1}"
         if len(solution_path) == 1:
@@ -572,16 +667,21 @@ def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_po
 
 
 def set_resolution():
+    """
+    Determines the side length of sub square-areas in the crime map
+    for a map to be built.
+    :return: None
+    """
     i = 3
     while i > 0:
         try:
-            res = float(input("\nEnter resolution between 0.001 and 0.005\n"))
+            res = float(input("\nEnter resolution between 0.0015 and 0.005\n"))
 
         except ValueError:
             print("\nInvalid resolution\n")
             i -= 1
         else:
-            if not 0.001 <= res <= 0.005:
+            if not 0.0015 <= res <= 0.005:
                 i -= 1
                 print("\nValue not in range.\n")
                 continue
@@ -592,16 +692,21 @@ def set_resolution():
 
 
 def set_threshold():
-    i = 3
+    """
+    Sets the threshold at which sub-areas will be considered as blocks.
+    Must be a value between 1% to 100%
+    :return: None
+    """
+    i = 3  # max of three attempts
     while i > 0:
         try:
-            thr = int(input("\nEnter threshold % (1 - 99)\n"))
+            thr = int(input("\nEnter threshold % (1 - 100)\n"))
 
         except ValueError:
             print("\nInvalid format\n")
             i -= 1
         else:
-            if not 1 <= thr <= 99:
+            if not 1 <= thr <= 100:
                 i -= 1
                 print("\nValue not in range\n")
                 continue
