@@ -306,7 +306,7 @@ class Graph:
 
     def heuristic(self, node, goal_node):
         """
-        Returns the shortest distance, in terms of resolution units (see resolution attribute),
+        Returns the shortest absolute distance, in terms of resolution units (see resolution attribute),
         between a node and the goal.
         This heuristic is admissible and monotonous.
         It is admissible because the distance is calculated with Pythagoras theorem.
@@ -316,7 +316,8 @@ class Graph:
         Instead, it will return the absolute minimum value in terms of resolution units (1 for straight moves, 1.414
         for immediate diagonals, and much more optimistic measures for farther distances).
 
-        It follows that, for the monotonous aspect, we have, for cell x and neighbour x2, h(x) <= cost(x, x2) + h(x2).
+        For the monotonous aspect, it follows from the previous description that,
+        for cell x1 and neighbour x2, h(x1) <= cost(x, x2) + h(x2).
 
         For these reasons, the goal will always be reached by the fastest route
         and each node will always be visited at the lowest cost the the first time they are encountered.
@@ -522,6 +523,7 @@ def a_star_algorithm(starting_node, goal_node, start_time):
         # checking timing requirement
         if time.time() - start_time > 10.0:
             print("Time is up. The optimal path is not found.")
+            input("Press enter to terminate program.")
             exit()
 
         node = heapq.heappop(open_list)
