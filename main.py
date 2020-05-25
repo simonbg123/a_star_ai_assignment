@@ -251,116 +251,144 @@ class Graph:
             for node in row:
                 node.heuristic = self.heuristic(node, goal_node)
 
-    # returns distance between a node and the goal
-    # this heuristic is admissible and monotonous.
-    # It will never overestimate the true distance
-    # and, for cell x and neighbour x2, h(x) <= cost(x, x2) + h(x2)
-    # For these reasons, the goal will always be reached by the fastest route
-    # and **each node will always be first visited at the lowest cost, the first time they are encountered**
     def heuristic(self, node, goal_node):
+        """
+        Returns the shortest distance, in terms of resolution units (see resolution attribute),
+        between a node and the goal.
+        This heuristic is admissible and monotonous.
+        It is admissible because the distance is calculated with Pythagoras theorem.
+
+        Therefore, it will never overestimate the true cost of a path, which is limited to straight and diagonal
+        moves from one node to the other, and ascribes 1 or 1.3 units to straight moves and 1.5 to diagonal moves.
+        Instead, it will return the absolute minimum value in terms of resolution units (1 for straight moves, 1.414
+        for immediate diagonals, and much more optimistic measures for farther distances).
+
+        It follows that, for the monotonous aspect, we have, for cell x and neighbour x2, h(x) <= cost(x, x2) + h(x2).
+
+        For these reasons, the goal will always be reached by the fastest route
+        and each node will always be visited at the lowest cost the the first time they are encountered.
+        :param node: the node for which we want to calculate the heuristic value
+        :param goal_node: the goal node, the position of which determines the heuristic value of the node
+        :return:
+        """
         y_diff = goal_node.point[1] - node.point[1]
         x_diff = goal_node.point[0] - node.point[0]
         # the division by the sub-grid size is to put distances in the same units as the length cost
         return math.sqrt(y_diff ** 2 + x_diff ** 2) / self.resolution
 
-    # returns mean and standard_dev for crime stats on this graph
     def get_statistics(self):
+        """
+        Obtain mean and standard deviation for crime stats of this graph.
+        :return: a tuple of the mean and the standard deviation for crime stats of this graph.
+        """
         crime_stats = [node.crime_count for row in self.graph for node in row]
         mean = stats.mean(crime_stats)
         std_dev = stats.stdev(crime_stats)
         return mean, std_dev
 
-    # obtain edges for each cell in the grid
-    # Edges along the boundaries of the graph aren't allowed
     def _add_edges(self):
+        """
+        Obtain edges for each cell in the graph.
+        Edges along the boundaries of the graph aren't allowed.
+        :return: None
+        """
 
         for i in range(len(self.graph)):
             for j in range(len(self.graph[0])):
-                node = self.graph[i][j]
+                self._get_edges(i, j)
 
-                # East-bound edges
-                if j < len(self.graph[0]) - 1:
-                    # if top-row
-                    if i == 0:
-                        if node.block and self.graph[i + 1][j].block:
-                            pass  # no east edges
-                        elif node.block:
-                            node.edges.extend([Edge(self.graph[i][j + 1], self._cost_along_block),
-                                               Edge(self.graph[i + 1][j + 1], self._cost_diagonal)])
-                        elif self.graph[i + 1][j].block:
-                            node.edges.append(Edge(self.graph[i][j + 1], self._cost_along_block))
-                        else:
-                            node.edges.extend([Edge(self.graph[i][j + 1], self._cost_straight),
-                                               Edge(self.graph[i + 1][j + 1], self._cost_diagonal)])
-                    # if bottom-row
-                    elif i == len(self.graph) - 1:
-                        if not node.block:
-                            node.edges.append(Edge(self.graph[i - 1][j + 1], self._cost_diagonal))
-                    # regular nodes
-                    else:
-                        if node.block and self.graph[i + 1][j].block:
-                            pass  # no east edges
-                        elif node.block:
-                            node.edges.extend([Edge(self.graph[i][j + 1], self._cost_along_block),
-                                               Edge(self.graph[i + 1][j + 1], self._cost_diagonal)])
-                        elif self.graph[i + 1][j].block:
-                            node.edges.extend([Edge(self.graph[i - 1][j + 1], self._cost_diagonal),
-                                               Edge(self.graph[i][j + 1], self._cost_along_block)])
-                        else:
-                            node.edges.extend([Edge(self.graph[i - 1][j + 1], self._cost_diagonal),
-                                               Edge(self.graph[i][j + 1], self._cost_straight),
-                                               Edge(self.graph[i + 1][j + 1], self._cost_diagonal)])
+    def _get_edges(self, i, j):
+        """
+        Get edges for a node. Should only be called once blocks have been assigned.
+        :param i: the row index of the node in the 2D array
+        :param j: the colomn index of the node in the 2D array
+        :return: None
+        """
+        node = self.graph[i][j]
 
-                # West-bound edges
-                if j > 0:
-                    # if top-row
-                    if i == 0:
-                        if self.graph[i][j - 1].block and self.graph[i + 1][j - 1].block:
-                            pass  # no west edges
-                        elif self.graph[i][j - 1].block:
-                            node.edges.extend([Edge(self.graph[i][j - 1], self._cost_along_block),
-                                               Edge(self.graph[i + 1][j - 1], self._cost_diagonal)])
-                        elif self.graph[i + 1][j - 1].block:
-                            node.edges.append(Edge(self.graph[i][j - 1], self._cost_along_block))
-                        else:
-                            node.edges.extend([Edge(self.graph[i][j - 1], self._cost_straight),
-                                               Edge(self.graph[i + 1][j - 1], self._cost_diagonal)])
-                    # if bottom-row
-                    elif i == len(self.graph) - 1:
-                        if not node.block:
-                            node.edges.append(Edge(self.graph[i - 1][j - 1], self._cost_diagonal))
-                    # regular nodes
-                    else:
-                        if self.graph[i][j - 1].block and self.graph[i + 1][j - 1].block:
-                            pass  # no east edges
-                        elif self.graph[i][j - 1].block:
-                            node.edges.extend([Edge(self.graph[i][j - 1], self._cost_along_block),
-                                               Edge(self.graph[i + 1][j - 1], self._cost_diagonal)])
-                        elif self.graph[i + 1][j - 1].block:
-                            node.edges.extend([Edge(self.graph[i - 1][j - 1], self._cost_diagonal),
-                                               Edge(self.graph[i][j - 1], self._cost_along_block)])
-                        else:
-                            node.edges.extend([Edge(self.graph[i - 1][j - 1], self._cost_diagonal),
-                                               Edge(self.graph[i][j - 1], self._cost_straight),
-                                               Edge(self.graph[i + 1][j - 1], self._cost_diagonal)])
+        # East-bound edges
+        if j < len(self.graph[0]) - 1:
+            # if top-row
+            if i == 0:
+                if node.block and self.graph[i + 1][j].block:
+                    pass  # no east edges
+                elif node.block:
+                    node.edges.extend([Edge(self.graph[i][j + 1], self._cost_along_block),
+                                       Edge(self.graph[i + 1][j + 1], self._cost_diagonal)])
+                elif self.graph[i + 1][j].block:
+                    node.edges.append(Edge(self.graph[i][j + 1], self._cost_along_block))
+                else:
+                    node.edges.extend([Edge(self.graph[i][j + 1], self._cost_straight),
+                                       Edge(self.graph[i + 1][j + 1], self._cost_diagonal)])
+            # if bottom-row
+            elif i == len(self.graph) - 1:
+                if not node.block:
+                    node.edges.append(Edge(self.graph[i - 1][j + 1], self._cost_diagonal))
+            # regular nodes
+            else:
+                if node.block and self.graph[i + 1][j].block:
+                    pass  # no east edges
+                elif node.block:
+                    node.edges.extend([Edge(self.graph[i][j + 1], self._cost_along_block),
+                                       Edge(self.graph[i + 1][j + 1], self._cost_diagonal)])
+                elif self.graph[i + 1][j].block:
+                    node.edges.extend([Edge(self.graph[i - 1][j + 1], self._cost_diagonal),
+                                       Edge(self.graph[i][j + 1], self._cost_along_block)])
+                else:
+                    node.edges.extend([Edge(self.graph[i - 1][j + 1], self._cost_diagonal),
+                                       Edge(self.graph[i][j + 1], self._cost_straight),
+                                       Edge(self.graph[i + 1][j + 1], self._cost_diagonal)])
 
-                # north-bound edge
-                if i > 0 and j > 0:
-                    if node.block and self.graph[i][j - 1].block:
-                        pass
-                    elif node.block or self.graph[i][j - 1].block:
-                        node.edges.append(Edge(self.graph[i - 1][j], self._cost_along_block))
-                    else:  # no blocks
-                        node.edges.append(Edge(self.graph[i - 1][j], self._cost_straight))
+        # West-bound edges
+        if j > 0:
+            # if top-row
+            if i == 0:
+                if self.graph[i][j - 1].block and self.graph[i + 1][j - 1].block:
+                    pass  # no west edges
+                elif self.graph[i][j - 1].block:
+                    node.edges.extend([Edge(self.graph[i][j - 1], self._cost_along_block),
+                                       Edge(self.graph[i + 1][j - 1], self._cost_diagonal)])
+                elif self.graph[i + 1][j - 1].block:
+                    node.edges.append(Edge(self.graph[i][j - 1], self._cost_along_block))
+                else:
+                    node.edges.extend([Edge(self.graph[i][j - 1], self._cost_straight),
+                                       Edge(self.graph[i + 1][j - 1], self._cost_diagonal)])
+            # if bottom-row
+            elif i == len(self.graph) - 1:
+                if not node.block:
+                    node.edges.append(Edge(self.graph[i - 1][j - 1], self._cost_diagonal))
+            # regular nodes
+            else:
+                if self.graph[i][j - 1].block and self.graph[i + 1][j - 1].block:
+                    pass  # no east edges
+                elif self.graph[i][j - 1].block:
+                    node.edges.extend([Edge(self.graph[i][j - 1], self._cost_along_block),
+                                       Edge(self.graph[i + 1][j - 1], self._cost_diagonal)])
+                elif self.graph[i + 1][j - 1].block:
+                    node.edges.extend([Edge(self.graph[i - 1][j - 1], self._cost_diagonal),
+                                       Edge(self.graph[i][j - 1], self._cost_along_block)])
+                else:
+                    node.edges.extend([Edge(self.graph[i - 1][j - 1], self._cost_diagonal),
+                                       Edge(self.graph[i][j - 1], self._cost_straight),
+                                       Edge(self.graph[i + 1][j - 1], self._cost_diagonal)])
 
-                # south-bound edge
-                if i < len(self.graph) - 1 and j > 0:
-                    if self.graph[i + 1][j].block and self.graph[i + 1][j - 1].block:
-                        pass
-                    elif self.graph[i + 1][j].block or self.graph[i + 1][j - 1].block:
-                        node.edges.append(Edge(self.graph[i + 1][j], self._cost_along_block))
-                    else:  # no blocks
-                        node.edges.append(Edge(self.graph[i + 1][j], self._cost_straight))
+        # north-bound edge
+        if i > 0 and j > 0:
+            if node.block and self.graph[i][j - 1].block:
+                pass
+            elif node.block or self.graph[i][j - 1].block:
+                node.edges.append(Edge(self.graph[i - 1][j], self._cost_along_block))
+            else:  # no blocks
+                node.edges.append(Edge(self.graph[i - 1][j], self._cost_straight))
+
+        # south-bound edge
+        if i < len(self.graph) - 1 and j > 0:
+            if self.graph[i + 1][j].block and self.graph[i + 1][j - 1].block:
+                pass
+            elif self.graph[i + 1][j].block or self.graph[i + 1][j - 1].block:
+                node.edges.append(Edge(self.graph[i + 1][j], self._cost_along_block))
+            else:  # no blocks
+                node.edges.append(Edge(self.graph[i + 1][j], self._cost_straight))
 
 
 # represents a square area within the original map
