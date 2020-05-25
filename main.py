@@ -196,9 +196,10 @@ class Graph:
     # returns a reference to a graph node corresponding
     # to a certain geolocation
     def get_graph_node(self, longitude, latitude):
-        x = math.floor((longitude * 10e5 - self.longitude_min * 10e5) / (self.resolution * 10e5))
+        mov_dec = 10e5  # this is used to avoid floating point accuracy issues
+        x = math.floor((longitude * mov_dec - self.longitude_min * mov_dec) / (self.resolution * mov_dec))
         y = len(self.graph) - 1 - \
-            math.floor((latitude * 10e5 - self.latitude_min * 10e5) / (self.resolution * 10e5))
+            math.floor((latitude * mov_dec - self.latitude_min * mov_dec) / (self.resolution * mov_dec))
 
         # checking that the geolocation is reachable in our graph
         if not (0 <= x < len(self.graph[0]) and 0 <= y < len(self.graph)):
@@ -207,9 +208,10 @@ class Graph:
         return self.graph[y][x]
 
     def get_graph_tuple(self, longitude, latitude):
-        x = math.floor((longitude * 10e5 - self.longitude_min * 10e5) / (self.resolution * 10e5))
+        mov_dec = 10e5  # this is used to avoid floating point accuracy issues
+        x = math.floor((longitude * mov_dec - self.longitude_min * mov_dec) / (self.resolution * mov_dec))
         y = len(self.graph) - 1 - \
-            math.floor((latitude * 10e5 - self.latitude_min * 10e5 ) / (self.resolution * 10e5))
+            math.floor((latitude * mov_dec - self.latitude_min * mov_dec) / (self.resolution * mov_dec))
 
         # checking that the geolocation is reachable in our graph
         if not (0 <= x < len(self.graph[0]) and 0 <= y < len(self.graph)):
@@ -482,7 +484,7 @@ def show_map(crime_map):
     for (i, j), z in np.ndenumerate(data):  # row, column
         ax.text(j, i, int(z), ha='center', va='center')  # col, row
 
-    mov_dec = 10e5
+    mov_dec = 10e5   # this is to avoid floating point accuracy issues in below calculations
     x_ticks = np.arange(crime_map.longitude_min * mov_dec,
                         (crime_map.longitude_max + crime_map.resolution) * mov_dec,
                         crime_map.resolution * mov_dec) / mov_dec
@@ -495,7 +497,6 @@ def show_map(crime_map):
     title = "Crime counts per area\nMean: {}    Standard deviation: {:0.2f}".format(mean, std_dev)
 
     fig.suptitle(title)
-
     plt.show(block=False)
 
     print("\nSee map for crime stats.\nMean: {}    Standard deviation: {:0.2f}\n".format(mean, std_dev))
