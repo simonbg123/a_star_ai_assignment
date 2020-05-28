@@ -5,6 +5,7 @@ import statistics as stats
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import numpy as np
+import os.path
 import time
 
 
@@ -18,7 +19,7 @@ def main():
     Deals with user interaction. Handles the flow of the program.
     :return: None
     """
-    sf = shapefile.Reader("Shape/crime_dt.shp")
+    sf = shapefile.Reader(os.path.join("Shape", "crime_dt.shp"))
     shapes = sf.shapes()
     resolution = DEFAULT_RESOLUTION
     threshold = DEFAULT_THRESHOLD
@@ -279,6 +280,9 @@ class Graph:
         # apply threshold rate
         num_blocks = math.floor((1 - self.threshold) * len(flat_list))
 
+        if num_blocks < 1:  # there are no blocks
+            return math.inf
+
         # update cells above the threshold to indicate they are blocks
         for index in range(num_blocks):
             flat_list[index].block = True
@@ -288,7 +292,7 @@ class Graph:
         # color plot.
         cutoff_rate = flat_list[index].crime_count
         index += 1
-        while flat_list[index].crime_count >= cutoff_rate:
+        while index < len(flat_list) and flat_list[index].crime_count >= cutoff_rate:
             flat_list[index].block = True
             index += 1
 
