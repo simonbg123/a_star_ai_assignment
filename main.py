@@ -141,7 +141,7 @@ def start(shapes, resolution, threshold):
 
     # Calculate heuristic values for the whole graph
     # This could have been done on a need basis, during the A* algorithm,
-    # but the data size is small and we hereby avoid calculating heuristic value s
+    # but the data size is small and we hereby avoid calculating heuristic values
     # multiple times for the same node.
     crime_map.add_heuristics(goal_node)
 
@@ -296,7 +296,8 @@ class Graph:
 
     def add_heuristics(self, goal_node):
         """
-        Calculates and sets the heuristic value for every node in the graph.
+        Calculates and sets the heuristic value for every node in the graph. See
+        the heuristic function for more details.
         :param goal_node: destination node
         :return: None
         """
@@ -307,20 +308,28 @@ class Graph:
     def heuristic(self, node, goal_node):
         """
         Returns the shortest absolute distance, in terms of resolution units (see resolution attribute),
-        between a node and the goal.
-        This heuristic is admissible and monotonous.
-        It is admissible because the distance is calculated with Pythagoras theorem.
+        between a node and the goal. It uses Pythagoras formula to get the absolute distance between
+        a point and the goal, and then divides the result by the resolution (or the sub-area side size) to
+        put the result in the same units as the path cost:
+        [( (y_goal - y)^2 + (x_goal - x)^2 )^(1/2)] / resolution.
 
-        Therefore, it will never overestimate the true cost of a path, which is limited to straight and diagonal
-        moves from one node to the other, and ascribes 1 or 1.3 units to straight moves and 1.5 to diagonal moves.
-        Instead, it will return the absolute minimum value in terms of resolution units (1 for straight moves, 1.414
-        for immediate diagonals, and much more optimistic measures for farther distances).
+        This heuristic is admissible and monotonous.
+
+        It is admissible because it calculates the absolute shortest distance between a point and the goal.
+        Therefore, it will never overestimate the true cost of a path. The real cost is limited to straight and diagonal
+        moves from one node to the other, ascribing 1 or 1.3 units to straight moves and 1.5 to diagonal moves, and
+        cannot go through blocks.
+        Instead, the heuristic will return the absolute minimum value in terms of resolution units (1 for straight
+        moves, 1.414 (or the square-root of 2) for immediate diagonals, and even more optimistic measures for farther
+        distances,because the measures allow to cut across segments).
 
         For the monotonous aspect, it follows from the previous description that,
-        for cell x1 and neighbour x2, h(x1) <= cost(x, x2) + h(x2).
+        for cell x1 and neighbour x2, h(x1) <= cost(x, x2) + h(x2), since no move to a reachable node
+        will ever improve the distance returned by the heuristic function, since it is already the shortest possible.
 
         For these reasons, the goal will always be reached by the fastest route
-        and each node will always be visited at the lowest cost the the first time they are encountered.
+        and each node will always be visited at the lowest cost the first time they are encountered.
+
         :param node: the node for which we want to calculate the heuristic value
         :param goal_node: the goal node, the position of which determines the heuristic value of the node
         :return:
@@ -613,7 +622,7 @@ def show_map(crime_map):
     fig.suptitle(title)
     plt.show(block=False)
 
-    print("\nSee map for crime stats.\nMean: {}    Standard deviation: {:0.2f}\n".format(mean, std_dev))
+    print("\nMean: {}    Standard deviation: {:0.2f}\nSee map for more information.\n".format(mean, std_dev))
 
     return fig, ax, title
 
@@ -646,7 +655,7 @@ def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_po
     else:
         # draw the path from the solution_path
         # should work also for len(path) == 1
-        message = f"{title}\nPath found! Length: {len(solution_path) - 1}"
+        message = f"{title}\nPath found! See path on map. Length: {len(solution_path) - 1}"
         if len(solution_path) == 1:
             message += "  - Goal is located in same area as starting point"
 
@@ -658,7 +667,7 @@ def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_po
             solution_x.append(point[0] - 0.5)
             solution_y.append(point[1] + 0.5)
 
-        ax.plot(solution_x, solution_y, color='green', linewidth=5, zorder=2)
+        ax.plot(solution_x, solution_y, color='green', linewidth=4, zorder=2)
         fig.suptitle(message)
         print(f"\n{message}\n")
         print(solution_path)

@@ -73,23 +73,28 @@ The closed list is a set of tuples representing geo-locations.
 
 ### Details on the heuristic function:
 
-The heuristic function returns the shortest absolute distance, in terms of resolution units, 
-between a node and the goal.
+The heuristic function returns the shortest absolute distance, in terms of resolution units (the sub-grid side size),
+between a node and the goal. It uses Pythagoras formula to get the absolute distance between
+a point and the goal, and then divides the result by the resolution (or the sub-area side size) to
+put the result in the same units as the path cost:
+[( (y_goal - y)^2 + (x_goal - x)^2 )^(1/2)] / resolution.
 
 This heuristic is admissible and monotonous.
-        
-It is admissible because the distance is calculated with Pythagoras theorem. Therefore, 
-it will never overestimate the true cost of a path, which is limited to straight and diagonal
-moves from one node to the other (ascribing 1 or 1.3 units to straight moves and 1.5 to diagonal moves).
-Instead, it returns the absolute minimum value in terms of resolution units (1 for straight moves, 1.414
-for immediate diagonals (square root of 2), and much more optimistic measures for farther distances).
 
-For the monotonous aspect, it follows from the preceding description that,
-for cell x1 and neighbour x2, h(x1) <= cost(x1, x2) + h(x2).
+It is admissible because it calculates the absolute shortest distance between a point and the goal.
+Therefore, it will never overestimate the true cost of a path. The real cost is limited to straight and diagonal
+moves from one node to the other, ascribing 1 or 1.3 units to straight moves and 1.5 to diagonal moves, and
+cannot go through blocks.
+Instead, the heuristic will return the absolute minimum value in terms of resolution units (1 for straight
+moves, 1.414 (or the square-root of 2) for immediate diagonals, and even more optimistic measures for farther
+distances,because the measures allow to cut across segments).
+
+For the monotonous aspect, it follows from the previous description that,
+for cell x1 and neighbour x2, h(x1) <= cost(x, x2) + h(x2), since no move to a reachable node
+will ever improve the distance returned by the heuristic function, since it is already the shortest possible.
 
 For these reasons, the goal will always be reached by the fastest route
-and each node will always be visited at the lowest cost the the first time they are encountered,
-which is why visited nodes are stored in a set, instead of a list.
+and each node will always be visited at the lowest cost the first time they are encountered.
 
 
 
