@@ -96,7 +96,12 @@ will ever improve the distance returned by the heuristic function, since it is a
 For these reasons, the goal will always be reached by the fastest route
 and each node will always be visited at the lowest cost the first time they are encountered.
 
-
+Some additional notes on informedness: the heuristic is informed, in the sense that it uses the overall distance
+from the target. It is not too informed. It could have been more informed, but this would have been
+costlier and error-prone: taking into account the presence of blocks would have make it easier to 
+design a heuristic that is not admissible or monotonous, because of corner cases and other subtleties. Such a cost was simply not worth it. The focus was on designing an algorithm that works efficiently.
+Furthermore, the A* algorithm is tasked with taking the blocks 
+into account, so there is no need to try to do that work separately, on our own.
 
 
 

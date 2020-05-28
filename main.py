@@ -319,20 +319,31 @@ class Graph:
 
         This heuristic is admissible and monotonous.
 
+        ADMISSIBILITY
         It is admissible because it calculates the absolute shortest distance between a point and the goal.
         Therefore, it will never overestimate the true cost of a path. The real cost is limited to straight and diagonal
         moves from one node to the other, ascribing 1 or 1.3 units to straight moves and 1.5 to diagonal moves, and
         cannot go through blocks.
-        Instead, the heuristic will return the absolute minimum value in terms of resolution units (1 for straight
+        Instead, this heuristic will return the absolute minimum value in terms of resolution units (1 for straight
         moves, 1.414 (or the square-root of 2) for immediate diagonals, and even more optimistic measures for farther
         distances,because the measures allow to cut across segments).
 
+        MONOTONICITY
         For the monotonous aspect, it follows from the previous description that,
         for cell x1 and neighbour x2, h(x1) <= cost(x, x2) + h(x2), since no move to a reachable node
         will ever improve the distance returned by the heuristic function, since it is already the shortest possible.
 
         For these reasons, the goal will always be reached by the fastest route
-        and each node will always be visited at the lowest cost the first time they are encountered.
+        and each node will always be visited at the lowest cost the first time they are encountered.n
+
+        INFORMEDNESS
+        This heuristic function is reasonably informed, taking into account the true distance to the target.
+        It could have been perhaps more informed, but this would have been costlier and error-prone: taking into account
+        the presence of blocks would have make it easier to design a heuristic that is not admissible or monotonous,
+        because of corner cases and other subtleties. Such a cost was not worth it. The focus was on deigning an
+        algorithm that works efficiently.
+        Furthermore, the A* algorithm is tasked with taking the blocks
+        into account, so there is no need to try to do that work separately, on our own.
 
         :param node: the node for which we want to calculate the heuristic value
         :param goal_node: the goal node, the position of which determines the heuristic value of the node
