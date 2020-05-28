@@ -104,7 +104,7 @@ def start(shapes, resolution, threshold):
     # Checking validity of input, with a max of three attempts.
     i = 3
     while i > 0:
-        user_start = input("\nEnter starting coordinates (ex: -73.55 45.525)\n")
+        user_start = input("\nEnter starting coordinates (ex: -73.56 45.525)\n")
         split_args = user_start.split()
         if len(split_args) != 2:
             print("\nInvalid input. Try again.")
@@ -121,9 +121,9 @@ def start(shapes, resolution, threshold):
         if not start_node:
             print("\nThe locations must be within the map's range\n")
             input("\nPress enter to continue.\n")
-            return
+            continue
 
-        user_goal = input("\nEnter destination coordinates (ex: -73.55 45.525)\n")
+        user_goal = input("\nEnter destination coordinates (ex: -73.56 45.525)\n")
         split_args = user_goal.split()
         goal_longitude, goal_latitude = get_coordinates(*split_args)
 
@@ -136,7 +136,7 @@ def start(shapes, resolution, threshold):
         if not goal_node:
             print("\nThe locations must be within the map's range\n")
             input("\nPress enter to continue.\n")
-            return
+            continue
 
         break
 
@@ -670,7 +670,7 @@ def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_po
     else:
         # draw the path from the solution_path
         # should work also for len(path) == 1
-        message = f"{title}\nPath found! See path on map. Length: {len(solution_path) - 1}"
+        message = f"{title}\nPath found! Length: {len(solution_path) - 1}"
         if len(solution_path) == 1:
             message += "  - Goal is located in same area as starting point"
 
@@ -684,7 +684,7 @@ def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_po
 
         ax.plot(solution_x, solution_y, color='green', linewidth=4, zorder=2)
         fig.suptitle(message)
-        print(f"\n{message}\n")
+        print(f"\n{message}\nSee path on map!\n")
         print(solution_path)
         print()
         plt.show(block=False)
