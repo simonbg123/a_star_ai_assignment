@@ -1,9 +1,8 @@
-"""
-Author: Simon Brillant-Giroux
-COMP-472-AB, Assignment 1, Zixi Quan
-Concordia University
-May 28, 2020
-"""
+# -------------------------------------------------------
+# Assignment 1
+# Written by Simon Brillant-Giroux, 40089110
+# For COMP 472 Section ABIX – Summer 2020
+# --------------------------------------------------------
 
 import math
 import heapq
@@ -571,6 +570,10 @@ def a_star_algorithm(starting_node, goal_node, start_time):
     solution_path = []    # a list of points from the goal back to the root of the tree
     open_list = []        # priority queue. The key is the A* score, and the value is a node reference
     closed_list = {None}  # this is the set (see comments above) of tuples representing the geo-locations of the visited nodes.
+    
+    # early return when start or goal is surrounded by blocks
+    if len(goal_node.edges) < 1 or len(starting_node.edges) < 1:
+        return solution_path
 
     root = StateSpaceNode(starting_node, None, 0, starting_node.heuristic)
     heapq.heappush(open_list, root)
