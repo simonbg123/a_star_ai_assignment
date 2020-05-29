@@ -636,10 +636,10 @@ def show_map(crime_map):
 
     # create discrete colormap
     cmap = colors.ListedColormap(['purple', 'yellow'])
-    bounds = [0, crime_map.cutoff_rate, 3000]
+    bounds = [0, crime_map.cutoff_rate - 0.1, 3000]
     norm = colors.BoundaryNorm(bounds, cmap.N)
 
-    fig, ax = plt.subplots(figsize=(9, 7))
+    fig, ax = plt.subplots(figsize=figure_size)
     ax.imshow(data, cmap=cmap, norm=norm)
 
     # draw grid lines
@@ -655,9 +655,11 @@ def show_map(crime_map):
     x_ticks = np.arange(crime_map.longitude_min * mov_dec,
                         (crime_map.longitude_max + crime_map.resolution) * mov_dec,
                         crime_map.resolution * mov_dec) / mov_dec
-    y_ticks = np.arange(crime_map.latitude_max * mov_dec,
-                        (crime_map.latitude_min - crime_map.resolution) * mov_dec,
-                        -crime_map.resolution * mov_dec) / mov_dec
+    y_ticks = np.arange(crime_map.latitude_min * mov_dec,
+                        (crime_map.latitude_max + crime_map.resolution) * mov_dec,
+                        crime_map.resolution * mov_dec) / mov_dec
+    # reverse to start the ticks from the bottom
+    y_ticks = y_ticks[::-1]
 
     ax.set_yticklabels(y_ticks)
     ax.set_xticklabels(x_ticks, rotation='vertical')
