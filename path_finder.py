@@ -76,7 +76,7 @@ def main():
         elif user_input is 's':
             pass
         elif user_input is 'q':
-            print("\nBye\n")
+            print("\nBye, thanks for using Path Finder!\n")
             return
         else:
             print("\nInvalid option\n")
@@ -570,7 +570,7 @@ def a_star_algorithm(starting_node, goal_node, start_time):
     solution_path = []    # a list of points from the goal back to the root of the tree
     open_list = []        # priority queue. The key is the A* score, and the value is a node reference
     closed_list = {None}  # this is the set (see comments above) of tuples representing the geo-locations of the visited nodes.
-    
+
     # early return when start or goal is surrounded by blocks
     if len(goal_node.edges) < 1 or len(starting_node.edges) < 1:
         return solution_path
