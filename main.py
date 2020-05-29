@@ -27,23 +27,32 @@ def main():
     print("\n")
     print("       * * * * * * * * * * * * * * * *")
     print("       *  Shortest Safe Path Finder  *")
-    print("       * * * * * * * * * * * * * * * *\n")
+    print("       * * * * * * * * * * * * * * * *")
 
     keep_going = True
 
     while keep_going:
 
-        # print("       * * * * * * * * * * * * * * * *")
-        print("***  Main Menu  ***\n")
-        # print("       * * * * * * * * * * * * * * * *\n")
-        print("Available range: {-73.59, -73.55)  {45.49, 45.53)")
+        print("\n***  Main Menu  ***\n")
+
+        print("\n")
+        print("* * * * * * * *")
+        print("*  Settings   *")
+        print("* * * * * * * *\n")
+
+        print("Available range: LON: {-73.59, -73.55)  LAT: {45.49, 45.53)")
         print(f"Area Resolution: {resolution}")
         print(f"Crime Threshold: {threshold}")
-        print()
+
+        print("\n")
+        print("* * * * * * * * * *")
+        print("*  Options Menu   *")
+        print("* * * * * * * * * *\n")
+
         print("{:<18}: enter 'r'".format("Set resolution"))
         print("{:<18}: enter 't'".format("Set threshold"))
         print("{:<18}: enter 'q'".format("Quit"))
-        print("\nPress Enter to start!\n")
+        print("\n{:<18}: press Enter!\n".format("Start"))
 
         user_input = input().strip()
 
@@ -86,6 +95,14 @@ def start(shapes, resolution, threshold):
     crime_map = Graph(shapes, resolution, threshold)
     fig, ax, title = show_map(crime_map)
 
+    go = input("Press 'r' to reconfigure the map,\nPress Enter to continue with current map:\n")
+    while go is not 'r' and go is not '':
+        go = input("Press Enter to continue, or 'r' to reconfigure the map")
+
+    if go is 'r':
+        plt.close()
+        return
+
     # get start and goal coordinates from user
     start_longitude = 0
     start_latitude = 0
@@ -104,7 +121,7 @@ def start(shapes, resolution, threshold):
     # Checking validity of input, with a max of three attempts.
     i = 3
     while i > 0:
-        user_start = input("\nEnter starting coordinates (ex: -73.56 45.525)\n")
+        user_start = input("\nEnter starting coordinates, separated by a space (ex: -73.56 45.525)\n")
         split_args = user_start.split()
         if len(split_args) != 2:
             print("\nInvalid input. Try again.")
@@ -119,12 +136,17 @@ def start(shapes, resolution, threshold):
 
         start_node = crime_map.get_graph_node(start_longitude, start_latitude)
         if not start_node:
+            i -= 1
             print("\nThe locations must be within the map's range\n")
             input("\nPress enter to continue.\n")
             continue
 
-        user_goal = input("\nEnter destination coordinates (ex: -73.56 45.525)\n")
+        user_goal = input("\nEnter destination coordinates, separated by a space (ex: -73.56 45.525)\n")
         split_args = user_goal.split()
+        if len(split_args) != 2:
+            print("\nInvalid input. Try again.")
+            i -= 1
+            continue
         goal_longitude, goal_latitude = get_coordinates(*split_args)
 
         if not goal_longitude or not goal_latitude:
@@ -134,11 +156,15 @@ def start(shapes, resolution, threshold):
 
         goal_node = crime_map.get_graph_node(goal_longitude, goal_latitude)
         if not goal_node:
+            i -= 1
             print("\nThe locations must be within the map's range\n")
             input("\nPress enter to continue.\n")
             continue
 
         break
+
+    if i == 0:  # three failed attempts: return to main menu
+        return
 
     # Calculate heuristic values for the whole graph
     # This could have been done on a need basis, during the A* algorithm,
@@ -593,6 +619,9 @@ def show_map(crime_map):
     :return:
     """
 
+    # defining figure-size
+    figure_size = (9, 7) if crime_map.resolution > 0.00175 else (11, 11)
+
     # remove any previous plot
     plt.close()
 
@@ -655,7 +684,7 @@ def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_po
     :return: None
     """
 
-    ax.scatter(start_point[0] - 0.5, start_point[1] + 0.5, color='green', linewidths=5, zorder=4,
+    ax.scatter(start_point[0] - 0.5, start_point[1] + 0.5, color='orange', linewidths=5, zorder=4,
                label="starting point")
     ax.scatter(goal_point[0] - 0.5, goal_point[1] + 0.5, color='blue', linewidths=9, zorder=3,
                label="goal")
@@ -682,11 +711,13 @@ def show_solution(crime_map, solution_path, fig, ax, title, start_point, goal_po
             solution_x.append(point[0] - 0.5)
             solution_y.append(point[1] + 0.5)
 
-        ax.plot(solution_x, solution_y, color='green', linewidth=4, zorder=2)
+        line_width = 4 if crime_map.resolution >= 0.0015 else 3
+
+        ax.plot(solution_x, solution_y, color='green', linewidth=line_width, zorder=2)
         fig.suptitle(message)
-        print(f"\n{message}\nSee path on map!\n")
+        print(f"\n{message}\n")
         print(solution_path)
-        print()
+        print("\nSee path on map!\n")
         plt.show(block=False)
 
     input("\nPress enter to continue\n")
@@ -701,13 +732,13 @@ def set_resolution():
     i = 3
     while i > 0:
         try:
-            res = float(input("\nEnter resolution between 0.0015 and 0.005\n"))
+            res = float(input("\nEnter resolution between 0.001 and 0.005 (for a better experience: 0.002 or above)\n"))
 
         except ValueError:
             print("\nInvalid resolution\n")
             i -= 1
         else:
-            if not 0.0015 <= res <= 0.005:
+            if not 0.001 <= res <= 0.005:
                 i -= 1
                 print("\nValue not in range.\n")
                 continue
