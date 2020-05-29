@@ -1,12 +1,19 @@
-import shapefile
+"""
+Author: Simon Brillant-Giroux
+COMP-472-AB, Assignment 1, Zixi Quan
+Concordia University
+May 28, 2020
+"""
+
 import math
 import heapq
 import statistics as stats
+import os.path
+import time
+import shapefile
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import numpy as np
-import os.path
-import time
 
 
 """ constants """
@@ -95,7 +102,7 @@ def start(shapes, resolution, threshold):
     crime_map = Graph(shapes, resolution, threshold)
     fig, ax, title = show_map(crime_map)
 
-    go = input("Press 'r' to reconfigure the map,\nPress Enter to continue with current map:\n")
+    go = input("\nPress 'r' to reconfigure the map,\nPress Enter to continue with current map:\n")
     while go is not 'r' and go is not '':
         go = input("Press Enter to continue, or 'r' to reconfigure the map")
 
@@ -121,7 +128,7 @@ def start(shapes, resolution, threshold):
     # Checking validity of input, with a max of three attempts.
     i = 3
     while i > 0:
-        user_start = input("\nEnter starting coordinates, separated by a space (ex: -73.56 45.525)\n")
+        user_start = input("\nEnter starting longitude and latitude, separated by a space (ex: -73.56 45.525)\n")
         split_args = user_start.split()
         if len(split_args) != 2:
             print("\nInvalid input. Try again.")
@@ -141,7 +148,7 @@ def start(shapes, resolution, threshold):
             input("\nPress enter to continue.\n")
             continue
 
-        user_goal = input("\nEnter destination coordinates, separated by a space (ex: -73.56 45.525)\n")
+        user_goal = input("\nEnter destination longitude and latitude, separated by a space (ex: -73.56 45.525)\n")
         split_args = user_goal.split()
         if len(split_args) != 2:
             print("\nInvalid input. Try again.")
